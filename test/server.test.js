@@ -33,13 +33,15 @@ test("forwards the user operation and API key", async () => {
     headers: { "x-api-key": "secret" },
   });
   assert.equal(response.status, 200);
-  assert.equal(call[0], "https://api.teamflect.com/users/GetUsers");
+  assert.equal(call[0].href, "https://api.teamflect.com/users/GetUsers");
   assert.equal(call[1].headers["x-api-key"], "secret");
 });
 
 test("forwards feedback JSON and rejects a missing key", async () => {
+  let upstreamUrl;
   let options;
-  const origin = await start(async (_url, receivedOptions) => {
+  const origin = await start(async (url, receivedOptions) => {
+    upstreamUrl = url;
     options = receivedOptions;
     return new Response(null, { status: 204 });
   });
@@ -57,7 +59,37 @@ test("forwards feedback JSON and rejects a missing key", async () => {
     body: JSON.stringify(payload),
   });
   assert.equal(response.status, 204);
+  assert.equal(
+    upstreamUrl.href,
+    "https://api.teamflect.com/feedback/sendFeedbackRequest",
+  );
   assert.deepEqual(JSON.parse(options.body), payload);
+});
+
+test("resolves operations against a configured Teamflect base URL", async () => {
+  let upstreamUrl;
+  const server = createApp(
+    async (url) => {
+      upstreamUrl = url;
+      return new Response("[]", {
+        headers: { "content-type": "application/json" },
+      });
+    },
+    "https://teamflect.example.test/integration/",
+  ).listen(0, "127.0.0.1");
+  servers.push(server);
+  await new Promise((resolve) => server.once("listening", resolve));
+
+  const response = await fetch(
+    `http://127.0.0.1:${server.address().port}/api/users/GetUsers`,
+    { headers: { "x-api-key": "secret" } },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    upstreamUrl.href,
+    "https://teamflect.example.test/integration/users/GetUsers",
+  );
 });
 
 test("does not expose an arbitrary API proxy", async () => {
