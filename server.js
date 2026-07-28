@@ -1,0 +1,100 @@
+"use strict";
+
+const fs = require("node:fs/promises");
+const http = require("node:http");
+const path = require("node:path");
+
+const TEAMFLECT_ORIGIN = "https://api.teamflect.com";
+const DEFAULT_PORT = 3000;
+const DEFAULT_HOST = "127.0.0.1";
+const MAX_BODY_BYTES = 100 * 1024;
+
+function send(response, status, body, contentType = "application/json; charset=utf-8") {
+  response.writeHead(status, {
+    "content-type": contentType,
+    "content-length": Buffer.byteLength(body),
+  });
+  response.end(body);
+}
+
+async function readBody(request) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) throw new Error("BODY_TOO_LARGE");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function createApp(fetchImplementation = globalThis.fetch) {
+  if (typeof fetchImplementation !== "function") {
+    throw new TypeError("A fetch implementation is required");
+  }
+
+  return http.createServer(async (request, response) => {
+    const url = new URL(request.url, "http://localhost");
+    const routes = new Map([
+      ["GET /api/users/GetUsers", "/users/GetUsers"],
+      ["POST /api/feedback/sendFeedbackRequest", "/feedback/sendFeedbackRequest"],
+    ]);
+    const upstreamPath = routes.get(`${request.method} ${url.pathname}`);
+
+    if (upstreamPath) {
+      const apiKey = request.headers["x-api-key"];
+      if (typeof apiKey !== "string" || !apiKey.trim()) {
+        return send(response, 400, JSON.stringify({ error: "The x-api-key header is required." }));
+      }
+      const headers = { "x-api-key": apiKey };
+      const options = { method: request.method, headers };
+      try {
+        if (request.method === "POST") {
+          const body = await readBody(request);
+          JSON.parse(body);
+          headers["content-type"] = "application/json";
+          options.body = body;
+        }
+        const upstream = await fetchImplementation(`${TEAMFLECT_ORIGIN}${upstreamPath}`, options);
+        const body = Buffer.from(await upstream.arrayBuffer());
+        const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+        response.writeHead(upstream.status, {
+          "content-type": contentType,
+          "content-length": body.length,
+        });
+        return response.end(body);
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          return send(response, 400, JSON.stringify({ error: "The request body must be valid JSON." }));
+        }
+        if (error.message === "BODY_TOO_LARGE") {
+          return send(response, 413, JSON.stringify({ error: "The request body is too large." }));
+        }
+        return send(response, 502, JSON.stringify({ error: "Teamflect could not be reached." }));
+      }
+    }
+
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+      try {
+        const body = await fs.readFile(path.join(__dirname, "index.html"));
+        return send(response, 200, body, "text/html; charset=utf-8");
+      } catch {
+        return send(response, 500, "Unable to load the application.", "text/plain; charset=utf-8");
+      }
+    }
+    return send(response, 404, JSON.stringify({ error: "Not found." }));
+  });
+}
+
+if (require.main === module) {
+  const port = Number.parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
+  const server = createApp().listen(port, DEFAULT_HOST, () => {
+    console.log(`Teamflect notifier is running at http://${DEFAULT_HOST}:${port}`);
+  });
+  server.on("error", (error) => {
+    console.error(`Unable to start Teamflect notifier: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { createApp };
