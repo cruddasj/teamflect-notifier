@@ -4,7 +4,7 @@ const fs = require("node:fs/promises");
 const http = require("node:http");
 const path = require("node:path");
 
-const TEAMFLECT_ORIGIN = "https://api.teamflect.com";
+const DEFAULT_TEAMFLECT_API_BASE_URL = "https://api.teamflect.com/";
 const DEFAULT_PORT = 3000;
 const DEFAULT_HOST = "127.0.0.1";
 const MAX_BODY_BYTES = 100 * 1024;
@@ -28,16 +28,20 @@ async function readBody(request) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function createApp(fetchImplementation = globalThis.fetch) {
+function createApp(
+  fetchImplementation = globalThis.fetch,
+  teamflectApiBaseUrl = DEFAULT_TEAMFLECT_API_BASE_URL,
+) {
   if (typeof fetchImplementation !== "function") {
     throw new TypeError("A fetch implementation is required");
   }
+  const apiBaseUrl = new URL(teamflectApiBaseUrl);
 
   return http.createServer(async (request, response) => {
     const url = new URL(request.url, "http://localhost");
     const routes = new Map([
-      ["GET /api/users/GetUsers", "/users/GetUsers"],
-      ["POST /api/feedback/sendFeedbackRequest", "/feedback/sendFeedbackRequest"],
+      ["GET /api/users/GetUsers", "users/GetUsers"],
+      ["POST /api/feedback/sendFeedbackRequest", "feedback/sendFeedbackRequest"],
     ]);
     const upstreamPath = routes.get(`${request.method} ${url.pathname}`);
 
@@ -55,7 +59,10 @@ function createApp(fetchImplementation = globalThis.fetch) {
           headers["content-type"] = "application/json";
           options.body = body;
         }
-        const upstream = await fetchImplementation(`${TEAMFLECT_ORIGIN}${upstreamPath}`, options);
+        // The browser deliberately calls this local route. Resolve the corresponding
+        // operation against the Teamflect base URL before making the server-side call.
+        const upstreamUrl = new URL(upstreamPath, apiBaseUrl);
+        const upstream = await fetchImplementation(upstreamUrl, options);
         const body = Buffer.from(await upstream.arrayBuffer());
         const contentType = upstream.headers.get("content-type") || "application/octet-stream";
         response.writeHead(upstream.status, {
@@ -88,9 +95,16 @@ function createApp(fetchImplementation = globalThis.fetch) {
 
 if (require.main === module) {
   const port = Number.parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
-  const server = createApp().listen(port, DEFAULT_HOST, () => {
-    console.log(`Teamflect notifier is running at http://${DEFAULT_HOST}:${port}`);
-  });
+  const teamflectApiBaseUrl =
+    process.env.TEAMFLECT_API_BASE_URL || DEFAULT_TEAMFLECT_API_BASE_URL;
+  const server = createApp(globalThis.fetch, teamflectApiBaseUrl).listen(
+    port,
+    DEFAULT_HOST,
+    () => {
+      console.log(`Teamflect notifier is running at http://${DEFAULT_HOST}:${port}`);
+      console.log(`Proxying Teamflect requests to ${new URL(teamflectApiBaseUrl).href}`);
+    },
+  );
   server.on("error", (error) => {
     console.error(`Unable to start Teamflect notifier: ${error.message}`);
     process.exitCode = 1;
