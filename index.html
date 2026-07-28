@@ -38,7 +38,7 @@
 </head>
 <body>
 <main>
-  <header><h1>Teamflect feedback requests</h1><p class="lede">Validate a CSV against Teamflect, then create feedback requests in one controlled batch.</p><p class="privacy"><strong>Privacy:</strong> Your API key is kept only in this page's memory for the current browser session. It is not logged, saved, or persisted.</p></header>
+  <header><h1>Teamflect feedback requests</h1><p class="lede">Validate a CSV against Teamflect, then create feedback requests in one controlled batch.</p><p class="privacy"><strong>Privacy:</strong> Your API key is kept only in this page's memory and sent to the local proxy with each request. The proxy immediately forwards it to Teamflect; neither this page nor the proxy logs, saves, or persists it.</p></header>
 
   <section aria-labelledby="step1-title">
     <h2 id="step1-title">Step 1 - Connect to Teamflect</h2>
@@ -87,8 +87,8 @@
 <script>
 (() => {
   "use strict";
-  // Teamflect's integration API uses this origin, relative routes, and the x-api-key header.
-  const API_ORIGIN = "https://api.teamflect.com";
+  // Requests stay same-origin; the local server forwards only these operations.
+  const API_ORIGIN = "/api";
   const API_VALID_MESSAGE = "✓ The API key is valid.";
   const CONNECTION_FAILED_MESSAGE =
     "A successful connection could not be made.";
@@ -139,10 +139,7 @@
     ...(json ? { "Content-Type": "application/json" } : {}),
   });
   const apiFetch = (path, options = {}) =>
-    fetch(`${API_ORIGIN}${path}`, {
-      ...options,
-      referrerPolicy: "no-referrer",
-    });
+    fetch(`${API_ORIGIN}${path}`, options);
   const normal = (value) => value.trim().toLowerCase();
   const validInformedEmail = (value) =>
     /^[^\s@]+@informed\.com$/i.test(value.trim());
