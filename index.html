@@ -89,6 +89,9 @@
   "use strict";
   // Teamflect's integration API uses this origin, relative routes, and the x-api-key header.
   const API_ORIGIN = "https://api.teamflect.com";
+  const API_VALID_MESSAGE = "✓ The API key is valid.";
+  const CONNECTION_FAILED_MESSAGE =
+    "A successful connection could not be made.";
   const HEADERS = [
     "Feedback Subject",
     "Feedback provider 1",
@@ -190,15 +193,7 @@
   ui["show-api-key"].addEventListener("blur", () => setApiKeyVisibility(false));
 
   // Step 1: authenticate once and cache the Teamflect user directory.
-  function apiError(error, response) {
-    if (error instanceof TypeError)
-      return "The browser could not reach Teamflect. This may be a network problem or Teamflect may not permit direct browser calls (CORS). The API key has not been classified as invalid.";
-    if (response?.status === 401 || response?.status === 403)
-      return "Authentication failed. Check that this is an active Teamflect integration API key with the required access.";
-    if (response)
-      return `Teamflect returned a server failure (HTTP ${response.status}${response.statusText ? " " + response.statusText : ""}).`;
-    return error?.message || "An unexpected error occurred.";
-  }
+  const apiError = () => CONNECTION_FAILED_MESSAGE;
 
   ui["test-key"].addEventListener("click", async () => {
     resetAfterKey();
@@ -211,7 +206,7 @@
     if (window.location.protocol === "file:") {
       return setStatus(
         ui["connection-status"],
-        "This page is open as a local file, so the browser gives it an opaque 'null' origin. Teamflect rejects API requests from that origin, and browser JavaScript cannot bypass this CORS policy. Run this page through a same-origin backend proxy that keeps the API key server-side, or ask Teamflect to allow the origin where the page is hosted.",
+        CONNECTION_FAILED_MESSAGE,
         "error",
       );
     }
@@ -255,16 +250,12 @@
       ui["csv-fields"].disabled = false;
       setStatus(
         ui["connection-status"],
-        `✓ API key verified. ${cache.size} Teamflect user${cache.size === 1 ? "" : "s"} cached for validation.`,
+        API_VALID_MESSAGE,
         "success",
       );
     } catch (error) {
       usersByEmail = null;
-      const message =
-        error instanceof SyntaxError
-          ? "Teamflect returned a malformed or unexpected response; an expected user collection with email addresses was not found."
-          : apiError(error, response);
-      setStatus(ui["connection-status"], message, "error");
+      setStatus(ui["connection-status"], CONNECTION_FAILED_MESSAGE, "error");
     } finally {
       ui["connection-fields"].disabled = false;
     }
