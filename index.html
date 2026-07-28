@@ -138,6 +138,11 @@
     "x-api-key": ui["api-key"].value.trim(),
     ...(json ? { "Content-Type": "application/json" } : {}),
   });
+  const apiFetch = (path, options = {}) =>
+    fetch(`${API_ORIGIN}${path}`, {
+      ...options,
+      referrerPolicy: "no-referrer",
+    });
   const normal = (value) => value.trim().toLowerCase();
   const validInformedEmail = (value) =>
     /^[^\s@]+@informed\.com$/i.test(value.trim());
@@ -214,7 +219,7 @@
     setStatus(ui["connection-status"], "Testing API key…");
     let response;
     try {
-      response = await fetch(`${API_ORIGIN}/users/GetUsers`, {
+      response = await apiFetch("/users/GetUsers", {
         method: "GET",
         headers: authHeaders(),
       });
@@ -482,7 +487,7 @@
       );
       let response;
       try {
-        response = await fetch(`${API_ORIGIN}/feedback/sendFeedbackRequest`, {
+        response = await apiFetch("/feedback/sendFeedbackRequest", {
           method: "POST",
           headers: authHeaders(true),
           body: JSON.stringify({
