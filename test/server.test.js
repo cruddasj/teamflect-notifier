@@ -21,6 +21,19 @@ test("serves the frontend", async () => {
   assert.match(await response.text(), /Teamflect feedback requests/);
 });
 
+test("presents the template first and locks later workflow steps initially", async () => {
+  const origin = await start(() => { throw new Error("unexpected upstream request"); });
+  const response = await fetch(origin);
+  const html = await response.text();
+
+  assert.ok(
+    html.indexOf('id="template-title-heading"') < html.indexOf('id="step1-title"'),
+  );
+  assert.match(html, /id="step2" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
+  assert.match(html, /id="step3" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
+  assert.match(html, /!connected \|\| ui\["csv-file"\]\.files\.length === 0/);
+});
+
 test("forwards the user operation and API key", async () => {
   let call;
   const origin = await start(async (...args) => {
