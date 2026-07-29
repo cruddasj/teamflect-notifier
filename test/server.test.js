@@ -87,6 +87,22 @@ test("forwards GetUsers paging parameters", async () => {
   );
 });
 
+test("preserves a Teamflect error status and response body", async () => {
+  const origin = await start(async () =>
+    new Response("API key is not authorized", {
+      status: 403,
+      headers: { "content-type": "text/plain" },
+    }),
+  );
+
+  const response = await fetch(`${origin}/api/users/GetUsers`, {
+    headers: { "x-api-key": "invalid" },
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(await response.text(), "API key is not authorized");
+});
+
 test("forwards feedback JSON and rejects a missing key", async () => {
   let upstreamUrl;
   let options;

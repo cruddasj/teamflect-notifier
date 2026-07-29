@@ -123,7 +123,11 @@
   ui["show-api-key"].addEventListener("blur", () => setApiKeyVisibility(false));
 
   // Step 1: authenticate once and cache the Teamflect user directory.
-  const apiError = () => CONNECTION_FAILED_MESSAGE;
+  const apiError = async (response) => {
+    if (!response) return CONNECTION_FAILED_MESSAGE;
+    const body = await response.text();
+    return `HTTP ${response.status}: ${body}`;
+  };
 
   const userCollection = (body) => {
     if (Array.isArray(body)) return body;
@@ -168,7 +172,7 @@
         method: "GET",
         headers: authHeaders(),
       });
-      if (!response.ok) throw new Error("HTTP failure");
+      if (!response.ok) throw new Error(await apiError(response));
       let body;
       try {
         body = await response.json();
@@ -222,7 +226,7 @@
       );
     } catch (error) {
       usersByEmail = null;
-      setStatus(ui["connection-status"], CONNECTION_FAILED_MESSAGE, "error");
+      setStatus(ui["connection-status"], error.message, "error");
     } finally {
       ui["connection-fields"].disabled = false;
     }
@@ -462,13 +466,10 @@
             isPrivate: true
           }),
         });
-        if (!response.ok)
-          throw new Error(
-            `HTTP ${response.status}${response.statusText ? " " + response.statusText : ""}`,
-          );
+        if (!response.ok) throw new Error(await apiError(response));
         successful++;
       } catch (error) {
-        failedRequests.push({ ...request, error: apiError(error, response) });
+        failedRequests.push({ ...request, error: error.message });
       }
       completed++;
     }
