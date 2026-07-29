@@ -508,7 +508,7 @@
     list.className = "failures";
     failedRequests.forEach((f) => {
       const li = document.createElement("li");
-      li.textContent = `Row ${f.rowNumber}, column ${f.column}: ${f.error}`;
+      li.textContent = `Row ${f.rowNumber}, column '${f.column}': ${f.error}`;
       list.append(li);
     });
     ui.failures.replaceChildren(title, list);
