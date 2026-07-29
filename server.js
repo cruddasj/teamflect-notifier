@@ -62,6 +62,8 @@ function createApp(
         // The browser deliberately calls this local route. Resolve the corresponding
         // operation against the Teamflect base URL before making the server-side call.
         const upstreamUrl = new URL(upstreamPath, apiBaseUrl);
+        // GetUsers is paged, so preserve its documented paging query parameters.
+        upstreamUrl.search = url.search;
         const upstream = await fetchImplementation(upstreamUrl, options);
         const body = Buffer.from(await upstream.arrayBuffer());
         const contentType = upstream.headers.get("content-type") || "application/octet-stream";
@@ -81,10 +83,17 @@ function createApp(
       }
     }
 
-    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+    const staticFiles = new Map([
+      ["/", ["index.html", "text/html; charset=utf-8"]],
+      ["/index.html", ["index.html", "text/html; charset=utf-8"]],
+      ["/styles.css", ["styles.css", "text/css; charset=utf-8"]],
+      ["/app.js", ["app.js", "text/javascript; charset=utf-8"]],
+    ]);
+    const staticFile = request.method === "GET" && staticFiles.get(url.pathname);
+    if (staticFile) {
       try {
-        const body = await fs.readFile(path.join(__dirname, "index.html"));
-        return send(response, 200, body, "text/html; charset=utf-8");
+        const body = await fs.readFile(path.join(__dirname, staticFile[0]));
+        return send(response, 200, body, staticFile[1]);
       } catch {
         return send(response, 500, "Unable to load the application.", "text/plain; charset=utf-8");
       }

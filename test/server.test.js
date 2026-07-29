@@ -21,6 +21,21 @@ test("serves the frontend", async () => {
   assert.match(await response.text(), /Teamflect feedback requests/);
 });
 
+test("serves the frontend stylesheet and script", async () => {
+  const origin = await start(() => { throw new Error("unexpected upstream request"); });
+  const [stylesheet, script] = await Promise.all([
+    fetch(`${origin}/styles.css`),
+    fetch(`${origin}/app.js`),
+  ]);
+
+  assert.equal(stylesheet.status, 200);
+  assert.match(stylesheet.headers.get("content-type"), /^text\/css/);
+  assert.match(await stylesheet.text(), /\.workflow-step/);
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get("content-type"), /^text\/javascript/);
+  assert.match(await script.text(), /async function getAllUsers/);
+});
+
 test("presents the template first and locks later workflow steps initially", async () => {
   const origin = await start(() => { throw new Error("unexpected upstream request"); });
   const response = await fetch(origin);
@@ -31,11 +46,9 @@ test("presents the template first and locks later workflow steps initially", asy
   );
   assert.match(html, /id="step2" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
   assert.match(html, /id="step3" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
-  assert.match(html, /setStepLocked\(ui\.step3, !connected \|\| validatedRows === null\)/);
-  assert.match(
-    html,
-    /validatedRows = clean;[\s\S]*?updateStepAvailability\(\);/,
-  );
+  assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/);
+  assert.match(html, /<script src="\/app\.js"><\/script>/);
+  assert.doesNotMatch(html, /<style>|<script>/);
 });
 
 test("forwards the user operation and API key", async () => {
@@ -50,8 +63,29 @@ test("forwards the user operation and API key", async () => {
     headers: { "x-api-key": "secret" },
   });
   assert.equal(response.status, 200);
-  assert.equal(call[0].href, "https://api.teamflect.com/users/GetUsers");
+  assert.equal(call[0].href, "https://api.teamflect.com/api/v1/user/GetUsers");
   assert.equal(call[1].headers["x-api-key"], "secret");
+});
+
+test("forwards GetUsers paging parameters", async () => {
+  let upstreamUrl;
+  const origin = await start(async (url) => {
+    upstreamUrl = url;
+    return new Response(JSON.stringify({ users: [] }), {
+      headers: { "content-type": "application/json" },
+    });
+  });
+
+  const response = await fetch(
+    `${origin}/api/users/GetUsers?page=3&pageSize=100`,
+    { headers: { "x-api-key": "secret" } },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    upstreamUrl.href,
+    "https://api.teamflect.com/api/v1/user/GetUsers?page=3&pageSize=100",
+  );
 });
 
 test("forwards feedback JSON and rejects a missing key", async () => {
@@ -78,7 +112,7 @@ test("forwards feedback JSON and rejects a missing key", async () => {
   assert.equal(response.status, 204);
   assert.equal(
     upstreamUrl.href,
-    "https://api.teamflect.com/feedback/sendFeedbackRequest",
+    "https://api.teamflect.com/api/v1/feedback/sendFeedbackRequest",
   );
   assert.deepEqual(JSON.parse(options.body), payload);
 });
@@ -105,7 +139,7 @@ test("resolves operations against a configured Teamflect base URL", async () => 
   assert.equal(response.status, 200);
   assert.equal(
     upstreamUrl.href,
-    "https://teamflect.example.test/integration/users/GetUsers",
+    "https://teamflect.example.test/integration/user/GetUsers",
   );
 });
 

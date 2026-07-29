@@ -39,7 +39,8 @@ request to the local server, which immediately forwards it in Teamflect's
 `x-api-key` header. The application does not persist, cache, or log the key and
 does not require a database or `.env` file.
 
-The local server proxies only:
+The local server proxies only these operations. Query parameters on `GetUsers`
+are forwarded so the browser can retrieve every page of the user directory:
 
-- `GET /users/GetUsers`
+- `GET /user/GetUsers`
 - `POST /feedback/sendFeedbackRequest`
