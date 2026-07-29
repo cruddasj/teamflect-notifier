@@ -31,7 +31,11 @@ test("presents the template first and locks later workflow steps initially", asy
   );
   assert.match(html, /id="step2" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
   assert.match(html, /id="step3" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
-  assert.match(html, /!connected \|\| ui\["csv-file"\]\.files\.length === 0/);
+  assert.match(html, /setStepLocked\(ui\.step3, !connected \|\| validatedRows === null\)/);
+  assert.match(
+    html,
+    /validatedRows = clean;[\s\S]*?updateStepAvailability\(\);/,
+  );
 });
 
 test("forwards the user operation and API key", async () => {
