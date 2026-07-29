@@ -162,10 +162,7 @@
   const updateStepAvailability = () => {
     const connected = usersByEmail !== null;
     setStepLocked(ui.step2, !connected);
-    setStepLocked(
-      ui.step3,
-      !connected || ui["csv-file"].files.length === 0,
-    );
+    setStepLocked(ui.step3, !connected || validatedRows === null);
   };
 
   function resetAfterKey() {
@@ -413,6 +410,7 @@
       validatedRows = clean;
       ui["send-fields"].disabled = false;
       ui.send.disabled = false;
+      updateStepAvailability();
       setStatus(
         ui["csv-status"],
         `✓ ${clean.length} row${clean.length === 1 ? "" : "s"} validated; ${requestCount(clean)} request${requestCount(clean) === 1 ? "" : "s"} ready.`,
