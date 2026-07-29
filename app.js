@@ -446,7 +446,7 @@
     for (const request of requests) {
       setStatus(
         ui["send-status"],
-        `⏳ Sending… ${completed}/${requests.length} completed.`,
+        `Sending… ${completed}/${requests.length} completed.`,
       );
       let response;
       try {
@@ -459,6 +459,7 @@
             feedbackNote: fields.note,
             dueDateInDays: fields.due,
             templateTitle: fields.title,
+            isPrivate: true
           }),
         });
         if (!response.ok)
