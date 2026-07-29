@@ -331,7 +331,8 @@
           errors.push(
             `Row ${rowNumber}, column ${HEADERS[0]}, value "${values[0]}": absent from Teamflect.`,
           );
-        const providers = [];
+        const providers = [],
+          providerColumns = [];
         PROVIDERS.forEach((name, i) => {
           const raw = values[i + 1],
             email = normal(raw);
@@ -344,13 +345,16 @@
             errors.push(
               `Row ${rowNumber}, column ${name}, value "${raw}": absent from Teamflect.`,
             );
-          else providers.push(email);
+          else {
+            providers.push(email);
+            providerColumns.push(name);
+          }
         });
         if (!providers.length)
           errors.push(
             `Row ${rowNumber}, column Feedback providers, value "": at least one provider is required.`,
           );
-        clean.push({ subject, providers });
+        clean.push({ subject, providers, providerColumns, rowNumber });
       });
       if (!clean.length) errors.push("At least one data row is required.");
       if (errors.length) throw new Error(errors.join("\n"));
@@ -414,7 +418,12 @@
   }
   const allRequests = () =>
     validatedRows.flatMap((row) =>
-      row.providers.map((provider) => ({ subject: row.subject, provider })),
+      row.providers.map((provider, index) => ({
+        subject: row.subject,
+        provider,
+        rowNumber: row.rowNumber,
+        column: row.providerColumns[index],
+      })),
     );
 
   // Step 3: confirm and dispatch each request while retaining individual results.
@@ -499,7 +508,7 @@
     list.className = "failures";
     failedRequests.forEach((f) => {
       const li = document.createElement("li");
-      li.textContent = `Subject ${f.subject}; provider ${f.provider}: ${f.error}`;
+      li.textContent = `Row ${f.rowNumber}, column ${f.column}: ${f.error}`;
       list.append(li);
     });
     ui.failures.replaceChildren(title, list);

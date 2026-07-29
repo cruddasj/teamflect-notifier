@@ -33,7 +33,13 @@ test("serves the frontend stylesheet and script", async () => {
   assert.match(await stylesheet.text(), /\.workflow-step/);
   assert.equal(script.status, 200);
   assert.match(script.headers.get("content-type"), /^text\/javascript/);
-  assert.match(await script.text(), /async function getAllUsers/);
+  const scriptBody = await script.text();
+  assert.match(scriptBody, /async function getAllUsers/);
+  assert.match(
+    scriptBody,
+    /Row \$\{f\.rowNumber\}, column \$\{f\.column\}: \$\{f\.error\}/,
+  );
+  assert.doesNotMatch(scriptBody, /Subject \$\{f\.subject\}; provider/);
 });
 
 test("links the CSV template from the top guidance and locks later workflow steps initially", async () => {
