@@ -36,14 +36,13 @@ test("serves the frontend stylesheet and script", async () => {
   assert.match(await script.text(), /async function getAllUsers/);
 });
 
-test("presents the template first and locks later workflow steps initially", async () => {
+test("links the CSV template from the top guidance and locks later workflow steps initially", async () => {
   const origin = await start(() => { throw new Error("unexpected upstream request"); });
   const response = await fetch(origin);
   const html = await response.text();
 
-  assert.ok(
-    html.indexOf('id="template-title-heading"') < html.indexOf('id="step1-title"'),
-  );
+  assert.match(html, /<header>[\s\S]*id="template-link"[\s\S]*<\/header>/);
+  assert.doesNotMatch(html, /template-title-heading/);
   assert.match(html, /id="step2" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
   assert.match(html, /id="step3" class="workflow-step is-locked"[^>]*aria-disabled="true"/);
   assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/);
