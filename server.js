@@ -4,7 +4,7 @@ const fs = require("node:fs/promises");
 const http = require("node:http");
 const path = require("node:path");
 
-const DEFAULT_TEAMFLECT_API_BASE_URL = "https://api.teamflect.com/";
+const DEFAULT_TEAMFLECT_API_BASE_URL = "https://api.teamflect.com/api/v1/";
 const DEFAULT_PORT = 3000;
 const DEFAULT_HOST = "127.0.0.1";
 const MAX_BODY_BYTES = 100 * 1024;
@@ -40,7 +40,7 @@ function createApp(
   return http.createServer(async (request, response) => {
     const url = new URL(request.url, "http://localhost");
     const routes = new Map([
-      ["GET /api/users/GetUsers", "users/GetUsers"],
+      ["GET /api/users/GetUsers", "user/GetUsers"],
       ["POST /api/feedback/sendFeedbackRequest", "feedback/sendFeedbackRequest"],
     ]);
     const upstreamPath = routes.get(`${request.method} ${url.pathname}`);
